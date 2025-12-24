@@ -152,6 +152,15 @@ class TextCacheProcessor:
         # Create output directory
         VAULT_ROOT.mkdir(parents=True, exist_ok=True)
         logger.info(f"Output directory: {VAULT_ROOT}")
+
+        # Smart skip configuration
+        self.max_size_bytes = args.max_size_kb * 1024 if args.max_size_kb else None
+        self.skipped_log = Path('skipped_huge_sessions.log')
+
+        if self.args.turbo:
+            logger.info("🚀 TURBO MODE ENABLED: Using heuristic summary generation (No AI)")
+        if self.max_size_bytes:
+            logger.info(f"🛡️  SMART MODE ENABLED: Skipping sessions larger than {args.max_size_kb}KB")
     
     def find_text_sessions(self) -> Dict[str, TextCacheSession]:
         """Find and group text files by session."""
@@ -204,11 +213,71 @@ class TextCacheProcessor:
                         logger.info(f"Found session with {len(text_files)} text files: {session_key}")
         
         return sessions
+
+    def generate_heuristic_summary(self, text: str, session: TextCacheSession) -> dict:
+        """Generate a quick summary without AI (Turbo Mode)."""
+        lines = text.split('\n')
+        
+        # Find important keywords (Basic extraction)
+        keywords = []
+        important_terms = ['議論', '決定', '審議', '検討', '提案', '課題', '方針', '確認']
+        
+        for line in lines[:200]:  # Check first 200 lines
+            for term in important_terms:
+                if term in line and len(line.strip()) > 10 and len(line.strip()) < 100:
+                    keywords.append(line.strip())
+                    if len(keywords) >= 8:
+                        break
+            if len(keywords) >= 8:
+                break
+        
+        meeting_name = session.meeting_name or "不明な会議"
+        round_info = f"第{session.round_num}回" if session.round_num else ""
+        
+        # Generate structured summary matching the AI output format
+        summary = {
+            '開催目的': f"{meeting_name}{round_info}が開催され、重要事項について議論が行われた。",
+            '主要な論点': keywords if keywords else ["会議資料に基づく議論が行われた。"],
+            '議論の流れ': "会議では各議題について順次検討が行われ、参加者から意見が出された。（Turboモード生成）",
+            '決定事項': ["次回会議に向けた準備を進める。", "関係資料の整理を行う。"],
+            '未解決の課題': ["継続的な検討が必要な事項がある。"],
+            '重要な固有名詞': ["関係省庁", "事務局"],
+            'タグ': ["会議", "議事録", "TurboMode"]
+        }
+        return summary
     
     def process_session(self, session: TextCacheSession) -> bool:
         """Process a single session of text files."""
         try:
             logger.info(f"Processing session: {session.session_key}")
+
+            # --- Smart Mode: Check Size ---
+            if self.max_size_bytes:
+                total_size = sum(f.stat().st_size for f in session.text_files)
+                if total_size > self.max_size_bytes:
+                    skip_msg = f"Skipped huge session: {total_size/1024:.1f}KB > {self.args.max_size_kb}KB"
+                    logger.warning(f"⚠️  {skip_msg}")
+                    
+                    # Log skip
+                    skip_info = {
+                        'timestamp': datetime.now().isoformat(),
+                        'session': session.session_key,
+                        'size_kb': total_size / 1024,
+                        'threshold_kb': self.args.max_size_kb
+                    }
+                    with open(self.skipped_log, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(skip_info, ensure_ascii=False) + '\n')
+                        
+                    # Create placeholder
+                    parts = session.session_key.split('/')
+                    ministry = parts[0]
+                    output_dir = VAULT_ROOT / ministry
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    placeholder_path = output_dir / f"{session.get_session_name()}_SKIPPED_TOO_LARGE.txt"
+                    with open(placeholder_path, 'w', encoding='utf-8') as f:
+                        f.write(f"{skip_msg}\nRun without --max-size-kb to process.\n")
+                    
+                    return True # Marked as processed (skipped)
             
             # Get combined text from all files
             combined_text = session.get_combined_text()
@@ -244,8 +313,16 @@ class TextCacheProcessor:
                 session.metadata.date = session.date.replace('-', '') if session.date else None
                 session.metadata.is_valid = True
             
-            # Generate AI-powered summary using existing framework
-            summary_result = self.text_summarizer.power_summary(combined_text)
+            summary_result = None
+            
+            # --- Generate Summary ---
+            if self.args.turbo:
+                logger.info(f"Generating TURBO summary (No AI)...")
+                summary_result = self.generate_heuristic_summary(combined_text, session)
+            else:
+                logger.info(f"Generating AI summary...")
+                # Generate AI-powered summary using existing framework
+                summary_result = self.text_summarizer.power_summary(combined_text)
             
             if not summary_result:
                 logger.warning(f"Failed to get summary result for: {session.session_key}")
@@ -363,6 +440,16 @@ def main():
         '--dry-run',
         action='store_true',
         help='Show what would be processed without actually processing'
+    )
+    parser.add_argument(
+        '--max-size-kb',
+        type=int,
+        help='Skip sessions larger than this size in KB (Smart Mode)'
+    )
+    parser.add_argument(
+        '--turbo',
+        action='store_true',
+        help='Turbo Mode: Use heuristic summary generation instead of AI (Offline/Fast)'
     )
     
     args = parser.parse_args()

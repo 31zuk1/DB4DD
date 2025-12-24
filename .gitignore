@@ -41,10 +41,10 @@ venv.bak/
 .cache/
 
 # Project-specific data directories
-infrastructure/data/raw/
-infrastructure/data/text_cache/
-infrastructure/data/raw_shortened/
+infrastructure/data/
 infrastructure/vaults/
+infrastructure/vaults_integrated/
+vaults_integrated/
 *.pdf
 
 # Database files

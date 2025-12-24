@@ -82,6 +82,12 @@ python src/main_enhanced.py [options]
 **Text cache processing (process from cached text instead of PDFs):**
 ```bash
 python src/main_from_text_cache.py [options]
+
+# Process offline (no API)
+python src/main_from_text_cache.py --turbo
+
+# Skip huge files (>500KB)
+python src/main_from_text_cache.py --max-size-kb 500
 ```
 
 ### Common Options
@@ -135,7 +141,7 @@ infrastructure/
 ├── src/
 │   ├── main.py                          # Standard processing entry point
 │   ├── main_enhanced.py                 # Enhanced multi-ministry processing
-│   ├── main_from_text_cache.py          # Process from cached text
+│   ├── main_from_text_cache.py          # Process from cached text (Supports --turbo/smart)
 │   ├── wikilinkify.py                   # Obsidian wikilink generator
 │   ├── core/
 │   │   ├── api_client.py                # OpenAI API client with caching
