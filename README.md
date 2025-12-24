@@ -114,6 +114,21 @@ python src/main.py --dry-run
 python src/main_enhanced.py [オプション]
 ```
 
+### テキストキャッシュからの処理
+
+PDFからではなく、すでに抽出済みのテキストキャッシュから処理を行う場合（高速・再処理用）:
+
+```bash
+# 基本的な使用法
+python src/main_from_text_cache.py
+
+# Turboモード（AIを使わず高速に骨子を作成、オフライン可）
+python src/main_from_text_cache.py --turbo
+
+# スマートモード（巨大なファイルをスキップして安全に処理）
+python src/main_from_text_cache.py --max-size-kb 500
+```
+
 ### パフォーマンスチューニング
 
 ```bash
