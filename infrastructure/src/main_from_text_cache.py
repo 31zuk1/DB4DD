@@ -42,15 +42,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration from environment
-TEXT_CACHE_ROOT = Path('./text_cache')
-BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', './DB'))
-CACHE_DIR = Path(os.getenv('CACHE_DIR', './.cache'))
+# Resolve paths relative to this script
+PROJECT_ROOT = Path(__file__).resolve().parent.parent # infrastructure/
+DATA_ROOT = Path(os.getenv('DATA_ROOT', PROJECT_ROOT / 'data'))
+TEXT_CACHE_ROOT = DATA_ROOT / 'text_cache'
+BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', PROJECT_ROOT / 'DB'))
+CACHE_DIR = Path(os.getenv('CACHE_DIR', PROJECT_ROOT / '.cache'))
 CHUNK_SIZE = int(os.getenv('CHUNK_CHARS', '2000'))
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '4'))
 
-# Fixed date for output - use DB_0823 as requested
-VAULT_DATE = '0823'
-VAULT_ROOT = BASE_VAULT_ROOT / f"DB_{VAULT_DATE}"
+# Generate date-based vault directory
+def get_default_vault_root():
+    """Generate vault root with today's date folder."""
+    if os.getenv('VAULT_DATE'):
+        vault_date = os.getenv('VAULT_DATE')
+        return BASE_VAULT_ROOT / f"DB_{vault_date}"
+    else:
+        today = datetime.now().strftime('%Y%m%d')
+        return BASE_VAULT_ROOT / f"DB_{today}"
+
+VAULT_ROOT = get_default_vault_root()
 
 class TextCacheSession:
     """Represents a group of text files from the same meeting session."""

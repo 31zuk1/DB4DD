@@ -106,12 +106,8 @@ python src/main.py --overwrite
 python src/main.py --dry-run
 ```
 
-### 拡張処理
-
-デジタル庁とこども家庭庁の両方の構造を処理する場合:
-
-```bash
-python src/main_enhanced.py [オプション]
+# 省庁別フィルタ
+python src/main.py --ministry "デジタル庁"
 ```
 
 ### テキストキャッシュからの処理
@@ -174,8 +170,7 @@ python src/wikilinkify.py
 DB4DD/
 ├── infrastructure/
 │   ├── src/
-│   │   ├── main.py                      # 標準処理のエントリーポイント
-│   │   ├── main_enhanced.py             # 拡張マルチ省庁処理
+│   │   ├── main.py                      # メイン処理（セッション統合機能付き）
 │   │   ├── main_from_text_cache.py      # キャッシュされたテキストからの処理
 │   │   ├── wikilinkify.py               # Obsidianウィキリンクジェネレーター
 │   │   ├── core/                        # コアモジュール

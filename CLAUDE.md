@@ -68,16 +68,13 @@ Output Markdown naming:
 
 ### Main Processing Scripts
 
-**Primary script (standard processing):**
-```bash
-cd infrastructure
 python src/main.py [options]
 ```
 
-**Enhanced processing (supports デジタル庁 and こども家庭庁 structures):**
+**Advanced features (formerly separate scripts):**
 ```bash
-python src/main_enhanced.py [options]
-```
+# Process only specific ministry
+python src/main.py --ministry "デジタル庁"
 
 **Text cache processing (process from cached text instead of PDFs):**
 ```bash
@@ -140,7 +137,8 @@ This script:
 infrastructure/
 ├── src/
 │   ├── main.py                          # Standard processing entry point
-│   ├── main_enhanced.py                 # Enhanced multi-ministry processing
+├── src/
+│   ├── main.py                          # Main session-based processing entry point
 │   ├── main_from_text_cache.py          # Process from cached text (Supports --turbo/smart)
 │   ├── wikilinkify.py                   # Obsidian wikilink generator
 │   ├── core/
