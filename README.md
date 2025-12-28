@@ -128,7 +128,7 @@ cd infrastructure
 python main_crawler.py
 ```
 
-`infrastructure/data/raw/crawler_downloads/` にPDFが保存されます。
+`infrastructure/data/raw/crawler_downloads/master_raw/` にPDFが保存されます（重複なしの固定ディレクトリ）。
 
 ### テキストキャッシュからの処理
 

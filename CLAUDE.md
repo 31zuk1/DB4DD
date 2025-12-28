@@ -207,7 +207,7 @@ OPENAI_MAX_PARALLEL=20                   # Max concurrent workers
 
 ## Processing Flow
 
-1. **Find PDFs**: Scan `data/raw/` for PDF files matching naming pattern
+1. **Find PDFs**: Scan `data/raw/crawler_downloads/master_raw/` (and manual `data/raw/`) for PDF files matching naming pattern
 2. **Check Processing Status**: Skip if already in `ProcessedDatabase` (unless `--overwrite`)
 3. **Extract Text**: Use PyMuPDF to extract text from PDF
 4. **Chunk Text**: Adaptively chunk based on document size

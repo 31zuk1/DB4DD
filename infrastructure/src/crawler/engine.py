@@ -47,9 +47,9 @@ class CrawlerEngine:
         self.load_state()
 
     def _get_daily_output_dir(self) -> Path:
-        """Generate output directory path: data/raw/crawler_downloads/digital_go_jp/YYYYMMDD"""
-        today = datetime.now().strftime("%Y%m%d")
-        path = self.output_base_dir / "digital_go_jp" / today
+        """Generate output directory path: data/raw/crawler_downloads/master_raw"""
+        # Changed from daily dated folder to single master folder to avoid duplication
+        path = self.output_base_dir / "master_raw"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -172,6 +172,35 @@ class CrawlerEngine:
                 meeting_urls.add(full_url)
         return list(meeting_urls)
 
+    def get_pagination_next(self, soup: BeautifulSoup, current_url: str) -> str:
+        """Find the 'Next' page URL from pagination."""
+        # 1. <link rel="next"> (Head)
+        link_next = soup.find('link', rel='next')
+        if link_next and link_next.get('href'):
+            return urljoin(current_url, link_next.get('href'))
+            
+        # 2. Drupal Pager (.pager__item--next > a)
+        next_item = soup.find('li', class_='pager__item--next')
+        if next_item:
+            a = next_item.find('a', href=True)
+            if a:
+                return urljoin(current_url, a['href'])
+        
+        # 3. Generic "Next" text or class
+        # Look for <a> with class containing "next" or text "次へ"
+        for a in soup.find_all('a', href=True):
+            # Class check
+            classes = a.get('class', [])
+            if any('next' in c.lower() for c in classes):
+                return urljoin(current_url, a['href'])
+            
+            # Text check (careful with this)
+            text = a.get_text(strip=True)
+            if text in ['次へ', 'Next', '>', '次へ >']:
+                return urljoin(current_url, a['href'])
+                
+        return None
+
     def run(self):
         """Main execution flow"""
         output_dir = self._get_daily_output_dir()
@@ -242,6 +271,61 @@ class CrawlerEngine:
                 except Exception as e:
                     logger.warning(f"[WARN] Error crawling council {page_url}: {e}")
                     continue
+
+                # --- Pagination Handling ---
+                try:
+                    current_page_url = page_url
+                    current_soup = page_soup
+                    page_count = 1
+                    
+                    while True:
+                        next_url = self.get_pagination_next(current_soup, current_page_url)
+                        if not next_url or next_url in self.seen_urls:
+                            break
+                        
+                        # Verify domain
+                        if not self.is_target_domain(next_url):
+                            break
+                            
+                        logger.info(f"  -> Following pagination (Page {page_count+1}): {next_url}")
+                        
+                        # Crawl Next Page
+                        time.sleep(self.sleep)
+                        current_page_url = next_url
+                        current_soup = self.get_soup(current_page_url)
+                        self.seen_urls.add(current_page_url)
+                        
+                        # 1. PDFs on this page
+                        pdfs_next = self.extract_pdf_links(current_soup, current_page_url)
+                        
+                        # 2. Meeting Pages on this page
+                        meeting_pages_next = self.get_meeting_pages(current_soup, current_page_url)
+                        
+                        # Process PDFs
+                        new_found_next = [u for u in pdfs_next if u not in all_pdfs] # check against current batch set
+                        all_pdfs.update(new_found_next)
+                        logger.info(f"     Found {len(new_found_next)} new PDFs on page {page_count+1}")
+                        
+                        # Process Meetings
+                        for mp_url in meeting_pages_next:
+                            if mp_url in processed_urls:
+                                continue
+                            processed_urls.add(mp_url)
+                            try:
+                                time.sleep(self.sleep)
+                                mp_soup = self.get_soup(mp_url)
+                                mp_pdfs = self.extract_pdf_links(mp_soup, mp_url)
+                                all_pdfs.update(mp_pdfs)
+                            except Exception as e:
+                                logger.warning(f"     [WARN] Error meeting {mp_url}: {e}")
+                        
+                        page_count += 1
+                        if page_count > 10: # Safety limit for pagination depth
+                            logger.info(f"  [INFO] Reached pagination limit of 10 pages for {page_url}")
+                            break
+                            
+                except Exception as e:
+                    logger.warning(f"[WARN] Error handling pagination for {page_url}: {e}")
             
             # 4. Download new PDFs
             self.found_links_count = len(all_pdfs)
