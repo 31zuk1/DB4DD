@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # Resolve paths relative to this script (infrastructure/src/main.py)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent # infrastructure/
 DATA_ROOT = Path(os.getenv('DATA_ROOT', PROJECT_ROOT / 'data'))
-BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', PROJECT_ROOT / 'DB'))
+BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', PROJECT_ROOT / 'vaults'))
 CACHE_DIR = Path(os.getenv('CACHE_DIR', PROJECT_ROOT / '.cache'))
 CHUNK_SIZE = int(os.getenv('CHUNK_CHARS', '2000'))
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '4'))
@@ -58,10 +58,10 @@ def get_default_vault_root():
     # Use environment variable if set, otherwise default to DB_{YYYYMMDD}
     if os.getenv('VAULT_DATE'):
         vault_date = os.getenv('VAULT_DATE')
-        return BASE_VAULT_ROOT / f"DB_{vault_date}"
+        return BASE_VAULT_ROOT / f"{vault_date}"
     else:
         today = datetime.now().strftime('%Y%m%d')
-        return BASE_VAULT_ROOT / f"DB_{today}"
+        return BASE_VAULT_ROOT / f"{today}"
 
 VAULT_ROOT = get_default_vault_root()
 
@@ -605,6 +605,16 @@ class SessionBasedGovMeetTracker:
         stats_file.write_text(
             json.dumps(self.stats, ensure_ascii=False, indent=2)
         )
+        
+        # --- Master Vault Sync ---
+        try:
+            from utils.vault_sync import VaultSynchronizer
+            master_dir = BASE_VAULT_ROOT / "master_vault"
+            logger.info(f"Syncing to master vault: {master_dir}")
+            syncer = VaultSynchronizer(master_dir)
+            syncer.sync(VAULT_ROOT)
+        except Exception as e:
+            logger.warning(f"Failed to sync to master vault: {e}")
 
 def create_argument_parser():
     """Create and configure argument parser."""

@@ -87,6 +87,13 @@ python src/main_from_text_cache.py --turbo
 python src/main_from_text_cache.py --max-size-kb 500
 ```
 
+**Automated Crawling:**
+```bash
+# Run the PDF crawler
+cd infrastructure
+python main_crawler.py
+```
+
 ### Common Options
 
 **Basic usage:**
@@ -138,8 +145,13 @@ infrastructure/
 ├── src/
 │   ├── main.py                          # Standard processing entry point
 ├── src/
-│   ├── main.py                          # Main session-based processing entry point
-│   ├── main_from_text_cache.py          # Process from cached text (Supports --turbo/smart)
+├── infrastructure/
+│   ├── main_crawler.py                  # Crawler entry point
+│   ├── requirements.txt                 # Project dependencies
+│   ├── src/
+│   │   ├── crawler/                     # Crawler module
+│   │   ├── main.py                      # Main session-based processing entry point
+│   │   ├── main_from_text_cache.py      # Process from cached text (Supports --turbo/smart)
 │   ├── wikilinkify.py                   # Obsidian wikilink generator
 │   ├── core/
 │   │   ├── api_client.py                # OpenAI API client with caching
@@ -159,9 +171,9 @@ infrastructure/
 │   ├── text_cache/                      # Cached text extractions
 │   └── raw_shortened/                   # Processed PDFs
 ├── vaults/                              # Output Obsidian vaults
-│   ├── デジタル庁/                       # Digital Agency vault
-│   └── こども家庭庁/                     # Children's Agency vault
-└── .cache/                              # API response cache
+│   ├── master_vault/                    # Master database (always latest)
+│   ├── 20251228/                        # Daily snapshot
+│   └── .cache/                          # API response cache
 ```
 
 ## Key Data Models
@@ -231,7 +243,9 @@ OPENAI_MAX_PARALLEL=20                   # Max concurrent workers
 - Prevents redundant information in final output
 
 ### Vault Organization
-- Dated output directories: `DB_{YYYYMMDD}/`
+### Vault Organization
+- Master Vault: `vaults/master_vault/` (Living database)
+- Daily Snapshots: `vaults/{YYYYMMDD}/`
 - Ministry-specific subdirectories
 - Meeting-specific subdirectories
 - One markdown file per meeting session

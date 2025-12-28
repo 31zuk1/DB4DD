@@ -1,0 +1,9 @@
+# Core
+openai>=1.0.0
+python-dotenv
+tqdm
+pymupdf
+
+# Crawler
+requests
+beautifulsoup4
