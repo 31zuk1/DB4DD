@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT_DIR))
 # Load environment
 load_dotenv(ROOT_DIR / '.env')
 
-from src.crawler import CrawlerEngine
+from crawler import CrawlerEngine
 
 # Logging configuration
 logging.basicConfig(
