@@ -43,6 +43,7 @@ venv.bak/
 # Project-specific data directories
 infrastructure/data/
 infrastructure/vaults/
+!infrastructure/vaults/master_vault/
 infrastructure/vaults_integrated/
 vaults_integrated/
 *.pdf
