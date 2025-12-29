@@ -43,11 +43,12 @@ logger = logging.getLogger(__name__)
 
 # Configuration from environment
 # Resolve paths relative to this script
-PROJECT_ROOT = Path(__file__).resolve().parent.parent # infrastructure/
-DATA_ROOT = Path(os.getenv('DATA_ROOT', PROJECT_ROOT / 'data'))
+PROJECT_INFRA_ROOT = Path(__file__).resolve().parent.parent # infrastructure/
+REPO_ROOT = PROJECT_INFRA_ROOT.parent
+DATA_ROOT = Path(os.getenv('DATA_ROOT', REPO_ROOT / 'data'))
 TEXT_CACHE_ROOT = DATA_ROOT / 'text_cache'
-BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', PROJECT_ROOT / 'vaults'))
-CACHE_DIR = Path(os.getenv('CACHE_DIR', PROJECT_ROOT / '.cache'))
+BASE_VAULT_ROOT = Path(os.getenv('VAULT_ROOT', REPO_ROOT / 'vaults'))
+CACHE_DIR = Path(os.getenv('CACHE_DIR', REPO_ROOT / 'vaults/.cache'))
 CHUNK_SIZE = int(os.getenv('CHUNK_CHARS', '2000'))
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '4'))
 

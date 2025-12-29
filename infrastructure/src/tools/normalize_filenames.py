@@ -4,7 +4,7 @@ from pathlib import Path
 
 import re
 
-TARGET_DIR = Path("infrastructure/data/input/crawled/デジタル庁")
+TARGET_DIR = Path("data/input/crawled/デジタル庁")
 
 def normalize_files():
     count = 0

@@ -1,74 +1,124 @@
 import os
-import unicodedata
 import re
+import unicodedata
 from pathlib import Path
+import logging
 
-BASE_DIR = Path("infrastructure/data/input/crawled/デジタル庁")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("normalization.log")
+    ]
+)
+logger = logging.getLogger(__name__)
 
-def simple_sanitize(name):
-    # Match organize_pdfs.py: remove illegal chars for filename safety
-    # We want to preserve dots for extensions if it's a file, but simple sanitization is safer for now.
-    # However, simple re.sub removes dots too, which is bad for files.
-    # We'll handle stem/suffix separately in the main loop.
-    return re.sub(r'[\\/:*?"<>|]', '', name).strip()
+TARGET_ROOT = Path("data/input/crawled/デジタル庁")
 
-def normalize_recursively(root_dir):
-    # Use walk with topdown=False to rename children before parents
-    for root, dirs, files in os.walk(root_dir, topdown=False):
-        
-        # 1. Rename Files
-        for filename in files:
-            file_path = Path(root) / filename
+def normalize_text(text: str) -> str:
+    """Normalize text to NFKC (full-width to half-width) and sanitize."""
+    # 1. NFKC Normalization
+    normalized = unicodedata.normalize('NFKC', text)
+    
+    # 2. Sanitize (remove illegal chars for filenames)
+    # Keep allowed characters: alphanumeric, Japanese, basic symbols
+    # Remove filesystem reserved chars: / \ : * ? " < > |
+    safe_text = re.sub(r'[\\/:*?"<>|]', '', normalized).strip()
+    
+    return safe_text
+
+def process_directory(directory: Path):
+    """Process a directory: first its children, then rename the directory itself."""
+    
+    # 1. Process files in this directory
+    try:
+        # List items to iterate safely (since we might rename them)
+        try:
+            items = list(directory.iterdir())
+        except FileNotFoundError:
+            return # Directory renamed or deleted by recursive call?
             
-            # Separate stem and suffix
+        # Separate files and directories
+        files = [x for x in items if x.is_file() and not x.name.startswith('.')]
+        subdirs = [x for x in items if x.is_dir()]
+        
+        # Recurse into subdirectories first (Bottom-up for directories)
+        for subdir in subdirs:
+            process_directory(subdir)
+            
+        # Rename files
+        for file_path in files:
+            original_name = file_path.name
             stem = file_path.stem
             suffix = file_path.suffix
             
-            # Normalize stem
-            norm_stem = unicodedata.normalize('NFKC', stem)
-            # Remove illegal chars from stem
-            safe_stem = simple_sanitize(norm_stem)
+            # Normalize stem only, keep extension as is (or lower/normalize extension too?)
+            # Usually strict lower for extension is safer, but let's stick to NFKC for everything
             
-            # Reconstruct
-            new_name = safe_stem + suffix
+            new_stem = normalize_text(stem)
+            new_name = new_stem + suffix
             
-            if filename != new_name:
-                new_path = Path(root) / new_name
-                try:
-                    if new_path.exists():
-                        print(f"Skipping file (Target exists): {filename} -> {new_name}")
-                    else:
+            if original_name != new_name:
+                new_path = file_path.parent / new_name
+                
+                if new_path.exists():
+                    logger.warning(f"SKIP (Collision): {original_name} -> {new_name}")
+                else:
+                    try:
                         file_path.rename(new_path)
-                        print(f"File: {filename} -> {new_name}")
-                except Exception as e:
-                    print(f"Error renaming file {filename}: {e}")
+                        logger.info(f"FILE: {original_name} -> {new_name}")
+                    except OSError as e:
+                        logger.error(f"ERROR: {original_name} -> {e}")
 
-        # 2. Rename Directories
-        for dirname in dirs:
-            dir_path = Path(root) / dirname
+        # 2. Rename the directory itself (after children are processed)
+        # We don't rename the root target folder, only subfolders
+        if directory == TARGET_ROOT:
+            return
+
+        dir_name = directory.name
+        new_dir_name = normalize_text(dir_name)
+        
+        if dir_name != new_dir_name:
+            new_dir_path = directory.parent / new_dir_name
             
-            norm_dirname = unicodedata.normalize('NFKC', dirname)
-            safe_dirname = simple_sanitize(norm_dirname)
-            
-            if dirname != safe_dirname:
-                new_path = Path(root) / safe_dirname
-                try:
-                    if new_path.exists():
-                         # Merge logic could be complex, for now skip or manual merge needed?
-                         # If target exists and is a dir, we should probably move contents?
-                         # Let's just warn for now to avoid data loss.
-                        print(f"WARNING: Directory Merge Required (Target exists): {dirname} -> {safe_dirname}")
-                        # Attempt to merge simply?
-                        # No, safer to alert user or handle manually if conflicts arise.
-                    else:
-                        dir_path.rename(new_path)
-                        print(f"Dir:  {dirname} -> {safe_dirname}")
-                except Exception as e:
-                    print(f"Error renaming dir {dirname}: {e}")
+            # Check for collision
+            if new_dir_path.exists():
+                 if directory.samefile(new_dir_path):
+                     pass
+                 else:
+                     logger.info(f"MERGE (Dir Collision): {dir_name} -> {new_dir_name}")
+                     # Move all contents from directory to new_dir_path
+                     try:
+                         for item in directory.iterdir():
+                             dest = new_dir_path / item.name
+                             if dest.exists():
+                                 # Suffix collision in merge?
+                                 dest = new_dir_path / f"merged_{item.name}"
+                             
+                             item.rename(dest)
+                         
+                         # Remove empty source dir
+                         directory.rmdir() 
+                         logger.info(f"MERGED and REMOVED: {dir_name}")
+                     except Exception as e:
+                         logger.error(f"ERROR Merging {dir_name}: {e}")
+                     return
+
+            try:
+                directory.rename(new_dir_path)
+                logger.info(f"DIR : {dir_name} -> {new_dir_name}")
+            except OSError as e:
+                logger.error(f"ERROR Dir: {dir_name} -> {e}")
+
+    except Exception as e:
+        logger.error(f"Fatal error in {directory}: {e}")
 
 if __name__ == "__main__":
-    if not BASE_DIR.exists():
-        print(f"Directory not found: {BASE_DIR}")
+    if not TARGET_ROOT.exists():
+        logger.error(f"Target root not found: {TARGET_ROOT}")
     else:
-        print(f"Normalizing contents of: {BASE_DIR}")
-        normalize_recursively(BASE_DIR)
+        logger.info(f"Starting normalization on {TARGET_ROOT}...")
+        process_directory(TARGET_ROOT)
+        logger.info("Normalization complete.")

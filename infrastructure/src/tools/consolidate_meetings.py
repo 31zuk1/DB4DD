@@ -2,7 +2,7 @@ import shutil
 import os
 from pathlib import Path
 
-BASE_DIR = Path("infrastructure/data/input/crawled/デジタル庁")
+BASE_DIR = Path("data/input/crawled/デジタル庁")
 
 # Target -> [List of Source Folders]
 CONSOLIDATION_MAP = {
