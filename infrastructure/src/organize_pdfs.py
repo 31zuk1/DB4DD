@@ -108,8 +108,12 @@ async def process_file(pdf_path: Path, api_client: APIClient, semaphore: asyncio
                 return
 
             # 5. Construct New Filename
-            safe_meeting = re.sub(r'[\\/:*?"<>|]', '', result.meeting_name).strip()
-            safe_doc = re.sub(r'[\\/:*?"<>|]', '', result.document_name).strip()
+            import unicodedata
+            normalized_meeting = unicodedata.normalize('NFKC', result.meeting_name)
+            safe_meeting = re.sub(r'[\\/:*?"<>|]', '', normalized_meeting).strip()
+            
+            normalized_doc = unicodedata.normalize('NFKC', result.document_name)
+            safe_doc = re.sub(r'[\\/:*?"<>|]', '', normalized_doc).strip()
             
             round_str = f"第{result.round_number:02d}回" if result.round_number else "回数不明"
             
