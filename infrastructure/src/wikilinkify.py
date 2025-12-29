@@ -23,7 +23,7 @@ SCRIPT_DIR = pathlib.Path(__file__).parent
 # Use DB_complete by default, or DB if it doesn't exist (backwards compatibility)
 DB_BASE = SCRIPT_DIR.parent / "DB"
 VAULT = DB_BASE / "DB_complete" if (DB_BASE / "DB_complete").exists() else DB_BASE
-KW_FILE = SCRIPT_DIR / "Keywords.txt"
+KW_FILE = SCRIPT_DIR.parent / "config/Keywords.txt"
 
 # ──────────────────── キーワード読み込み & 正規化 ──────────────── #
 def load_keywords(path: pathlib.Path) -> list[str]:

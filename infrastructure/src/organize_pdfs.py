@@ -30,7 +30,7 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("organize_pdfs.log")
+        logging.FileHandler(PROJECT_INFRA_ROOT.parent / "logs/organize_pdfs.log")
     ]
 )
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ REPO_ROOT = PROJECT_INFRA_ROOT.parent
 SOURCE_DIR = REPO_ROOT / "data/raw/crawler_downloads/master_raw"
 TARGET_DIR = REPO_ROOT / "data/input/crawled/デジタル庁"
 CACHE_DIR = REPO_ROOT / "vaults/.cache"
-CSV_LOG_PATH = PROJECT_INFRA_ROOT / "src/rename_map.csv"
+CSV_LOG_PATH = REPO_ROOT / "logs/rename_map.csv"
 
 # --- Pydantic Model for Extraction ---
 class MeetingMetadata(BaseModel):
